@@ -2,6 +2,7 @@ import inspect
 import ast, textwrap
 from .contextTransformer import ContextTransformer
 from .kwargsTransformer import KwargsTransformer
+from ngcsimlib._src.context.contextAwareObjectMeta import ContextAwareObjectMeta
 
 
 def compilable(fn):
@@ -16,11 +17,13 @@ def compilable(fn):
 
 
 class CompiledMethod:
-    def __init__(self, fn, fn_ast, auxiliary_ast, namespace):
+    def __init__(self, fn, fn_ast, auxiliary_ast, namespace, extra_globals):
         self._fn = fn
         self._fn_ast = fn_ast
-        self._auxiliary_ast = auxiliary_ast if auxiliary_ast is not None else []
+        self._auxiliary_ast = auxiliary_ast if auxiliary_ast is not None else {}
         self._namespace = namespace
+        self._extra_globals = extra_globals
+
 
     @property
     def auxiliary_ast(self):
@@ -31,24 +34,26 @@ class CompiledMethod:
         return self._fn_ast
 
     @property
+    def extra_globals(self):
+        return self._extra_globals
+
+    @property
     def namespace(self):
         return self._namespace
 
     @property
     def code(self):
-        blocks = [ast.unparse(aast) for aast in self._auxiliary_ast[::-1]]
+        blocks = [ast.unparse(aast) for _, aast in list(self._auxiliary_ast.items())[::-1]]
         blocks.append(ast.unparse(self._fn_ast))
         return "\n\n".join(blocks)
 
     def __call__(self, *args, **kwargs):
         return self._fn(*args, **kwargs)
 
-def _bind(obj, method, ast_obj, namespace=None, auxiliary_ast=None):
+def _bind(obj, method, ast_obj, namespace=None, auxiliary_ast=None, extra_globals=None):
     try:
         code = compile(ast_obj, filename=f"{method.__name__}_compiled", mode='exec')
     except Exception as e:
-        print(obj)
-        print(method)
         raise e
     namespace = method.__globals__.copy() if namespace is None else namespace
     exec(code, namespace)
@@ -59,7 +64,8 @@ def _bind(obj, method, ast_obj, namespace=None, auxiliary_ast=None):
         fn=transformed_func,
         fn_ast=ast_obj,
         auxiliary_ast=auxiliary_ast,
-        namespace=namespace
+        namespace=namespace,
+        extra_globals=extra_globals
     )
 
     setattr(obj, method.__name__, _methodWrapper(method, compiled_method))
@@ -96,14 +102,15 @@ def parse_method(obj, method):
             values need to be pulled from the global state)
         method: The method to compile
     """
-    transformer, transformed, extra_namespace, auxiliary_ast, extra_globals = _sub_parse(obj, method)
+    transformed, additional_modules, extra_globals = _sub_parse(obj, method)
     namespace = method.__globals__.copy()
     namespace.update(extra_globals)
-    for method_name, module in extra_namespace.items():
+    for method_name, module in additional_modules.items():
         code = compile(module, filename=f"{method_name}_compiled", mode='exec')
         exec(code, namespace)
 
-    _bind(obj, method, transformed, namespace, auxiliary_ast)
+    _bind(obj, method, transformed, namespace,
+          additional_modules, extra_globals)
 
 
 def _sub_parse(obj, method, sub=False):
@@ -114,17 +121,16 @@ def _sub_parse(obj, method, sub=False):
     ast.fix_missing_locations(transformed)
 
     extra_globals = transformer.needed_globals.copy()
-    auxiliary_ast = []
-    extra_namespace = {}
+    additional_modules = transformer.auxiliary_ast.copy()
+
 
     for bound_name, method_name in transformer.needed_methods.items():
-        _, method, e, m, g = _sub_parse(obj, getattr(obj, method_name), sub=True)
-        extra_namespace[bound_name] = method
-        extra_namespace.update(e)
+        method, adm, g = _sub_parse(obj, getattr(obj, method_name), sub=True)
+        additional_modules[bound_name] = method
+        additional_modules.update(adm)
         extra_globals.update(g)
-        auxiliary_ast.append(method)
-        auxiliary_ast.extend(m)
-    return transformer, transformed, extra_namespace, auxiliary_ast, extra_globals
+
+    return transformed, additional_modules, extra_globals
 
 
 def compileObject(obj):
@@ -135,10 +141,19 @@ def compileObject(obj):
     Args:
         obj: The object to compile
     """
+
+    deferred_compile = []
     for name in dir(obj):
         attr = getattr(obj, name)
         if hasattr(attr, "_is_compilable") and not inspect.isclass(attr):
-            parse_method(obj, attr)
+            if isinstance(type(attr), ContextAwareObjectMeta):
+                compileObject(attr)
+            else:
+                deferred_compile.append(attr)
+
+    for attr in deferred_compile:
+        parse_method(obj, attr)
+
 
 
 class _methodWrapper:

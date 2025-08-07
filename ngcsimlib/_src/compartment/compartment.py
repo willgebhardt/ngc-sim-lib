@@ -45,7 +45,7 @@ class Compartment(metaclass=CompartmentMeta):
 
     @property
     def targeted(self) -> bool:
-        return self._target != self._root_target
+        return not isinstance(self._target, str) or (self._target != self._root_target)
 
     @property
     def fixed(self) -> bool:
@@ -54,11 +54,12 @@ class Compartment(metaclass=CompartmentMeta):
         """
         return self._fixed
 
-    def _setup(self, objName, compName, path):
+    def _setup(self, compName, path):
         self.name = compName
-        self._root_target = path + ":" + objName + ":" + self.name
-        self._target = self._root_target
-        self.set(self._initial_value)
+        self._root_target = path + ":" + self.name
+        if self.target is None:
+            self._target = self._root_target
+            self.set(self._initial_value)
         gState.add_compartment(self)
 
     def set(self, value: T) -> None:
@@ -119,7 +120,8 @@ class Compartment(metaclass=CompartmentMeta):
         return self.target._to_ast(node, ctx)
 
     def __rrshift__(self, other):
-        gcm.current_context.add_connection(other, self)
+        if gcm.current_context is not None:
+            gcm.current_context.add_connection(other, self)
         self.target = other
 
     def __rshift__(self, other):

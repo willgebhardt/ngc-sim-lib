@@ -1,8 +1,10 @@
+import json
 from typing import Dict, Any
 
 from .context_manager import global_context_manager as gcm
 from .contextAwareObjectMeta import ContextAwareObjectMeta
 from ngcsimlib._src.parser.utils import compileObject
+from ngcsimlib._src.logger import warn
 
 class ContextAwareObject(object, metaclass=ContextAwareObjectMeta):
     """
@@ -22,8 +24,24 @@ class ContextAwareObject(object, metaclass=ContextAwareObjectMeta):
 
         Returns: A dictionary of data that can be serialized by JSON.
         """
-        data = {"args": self._args,
-                "kwargs": self._kwargs}
+        safe_args = []
+        for a in self._args:
+            try:
+                json.dumps(a)
+                safe_args.append(a)
+            except:
+                warn(f"In {self.name}, unable to serialize positional argument {a}")
+
+        safe_kwargs = {}
+        for key, val in self._kwargs.items():
+            try:
+                json.dumps(val)
+                safe_kwargs[key] = val
+            except:
+                warn(f"In {self.name}, unable to serialize keyword argument {key}: {val}")
+
+        data = {"args": safe_args,
+                "kwargs": safe_kwargs}
         return data
 
     def compile(self):

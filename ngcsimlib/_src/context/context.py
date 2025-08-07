@@ -6,6 +6,8 @@ from ngcsimlib._src.utils.io import make_unique_path, make_safe_filename
 from ngcsimlib._src.modules.modules_manager import modules_manager as modManager
 from ngcsimlib._src.operations.BaseOp import BaseOp
 
+from ngcsimlib._src.global_state.manager import global_state_manager
+
 from enum import Enum
 import os, shutil
 
@@ -84,6 +86,7 @@ class Context(object):
         """
         priorities = {}
 
+
         for objectType in self.objects.keys():
             _objs = self.get_objects_by_type(objectType)
             for objName, obj in _objs.items():
@@ -93,6 +96,7 @@ class Context(object):
 
                     if p not in priorities:
                         priorities[p] = []
+
                     priorities[p].append(obj)
 
 
@@ -255,10 +259,11 @@ class Context(object):
 
         path = make_unique_path(directory, model_name)
 
-        contextMeta = {"types": list(self.objects.keys())}
+        contextMeta = {"types": list(self.objects.keys()),
+                       "path": self.path}
 
         with open(f"{path}/contextData.json", "w") as f:
-            f.write(json.dumps(contextMeta))
+            f.write(json.dumps(contextMeta, indent=4))
 
         for _type in self.objects.keys():
             type_path = f"{path}/{make_safe_filename(_type)}"
@@ -307,11 +312,11 @@ class Context(object):
                  "existing context")
             return gcm.get_context(gcm.append_path(module_name))
 
-        with Context(module_name) as ctx:
-            path = directory + "/" + module_name
-            with open(f"{path}/contextData.json", "r") as f:
-                metaData = json.load(f)
+        path = directory + "/" + module_name
+        with open(f"{path}/contextData.json", "r") as f:
+            metaData = json.load(f)
 
+        with Context(metaData.get("path", module_name)) as ctx:
             delayed_load = []
 
             for _type in metaData["types"]:

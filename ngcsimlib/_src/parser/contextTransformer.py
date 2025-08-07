@@ -1,4 +1,6 @@
 import ast
+
+from ngcsimlib._src.context.contextAwareObjectMeta import ContextAwareObjectMeta
 from ngcsimlib._src.global_state.manager import global_state_manager
 from ngcsimlib._src.logger import warn, error
 from ngcsimlib._src.compartment.compartment import Compartment
@@ -14,9 +16,11 @@ class ContextTransformer(ast.NodeTransformer):
         self.method = method
         self.current_args = set()
         self.needed_keys = set()
-        self.needed_methods = {}
         self.subMethod = subMethod
+
+        self.needed_methods = {}
         self.needed_globals = {}
+        self.auxiliary_ast = {}
 
     def visit_Return(self, node):
         if self.subMethod:
@@ -46,8 +50,7 @@ class ContextTransformer(ast.NodeTransformer):
 
 
         node.decorator_list = new_decorators
-
-        node.name = self.obj.name + "_" + node.name
+        node.name = self.obj.context_path.replace(":", "_") + "_" + node.name
         self.generic_visit(node)
 
         if not self.subMethod:
@@ -74,13 +77,16 @@ class ContextTransformer(ast.NodeTransformer):
 
                 return ast.fix_missing_locations(new_node)
 
+            if hasattr(stateVal, '_is_compilable') and isinstance(type(stateVal), ContextAwareObjectMeta):
+                return node
+
             if callable(stateVal):
-                method_name = f"{self.obj.name}_{node.attr}"
+                method_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
                 new_node = ast.copy_location(ast.Name(id=method_name, ctx=node.ctx), node)
                 self.needed_methods[method_name] = node.attr
                 return ast.fix_missing_locations(new_node)
 
-            attr_name = f"{self.obj.name}_{node.attr}"
+            attr_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
             new_node = ast.copy_location(ast.Name(id=attr_name, ctx=node.ctx), node)
             self.needed_globals[attr_name] = stateVal
             return ast.fix_missing_locations(new_node)
@@ -88,7 +94,30 @@ class ContextTransformer(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
+
         node = self.generic_visit(node)
+
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute) \
+            and isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == "self":
+            attr = getattr(self.obj, node.func.value.attr)
+            if not isinstance(type(attr), ContextAwareObjectMeta):
+                return node
+
+            subAttr = getattr(attr, node.func.attr)
+            if not hasattr(subAttr, "compiled"):
+                error("Attempting to use a method of a subcomponent that is not compiled/compilable")
+
+            method_id = f"{attr.context_path.replace(':', '_')}_{node.func.attr}"
+            subAst = subAttr.compiled.ast
+            subAst.body[0].body = subAst.body[0].body[:-1]
+
+            self.auxiliary_ast[method_id] = subAst
+            self.auxiliary_ast.update(subAttr.compiled.auxiliary_ast)
+            self.needed_globals.update(subAttr.compiled.extra_globals)
+
+            node.func = ast.Name(id=method_id, ctx=ast.Load())
+            node.args = [ast.Name(id='ctx', ctx=ast.Load())] + node.args
+
         if isinstance(node.func, ast.Attribute) and node.func.attr == "get":
             return node.func.value
 
@@ -96,19 +125,6 @@ class ContextTransformer(ast.NodeTransformer):
             node.args = [ast.Name(id='ctx', ctx=ast.Load())] + node.args
 
         return node
-
-    # def visit_Assign(self, node):
-    #     for target in node.targets:
-    #         if isinstance(target, ast.Name):
-    #             target.id = f"{self.obj.name}_{target.id}"
-    #             self.local_vars.add(target.id)
-    #     return self.generic_visit(node)
-    #
-    #
-    # def visit_Name(self, node):
-    #     # if node.id in self.local_vars:
-    #     #     node.id = f"{self.obj.name}_{node.id}"
-    #     return node
 
     def visit_Expr(self, node):
         node = self.generic_visit(node)

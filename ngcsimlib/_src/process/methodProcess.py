@@ -49,9 +49,9 @@ class MethodProcess(BaseProcess):
     def __rshift__(self, method):
         return self.then(method)
 
-    def _parse(self) -> Tuple[List, List, List, Dict]:
+    def _parse(self) -> Tuple[List, Dict, List, Dict]:
         bodies = []
-        extras = []
+        extras = {}
         key_set = set()
         for obj, method in self.method_order:
             m: CompiledMethod = getattr(obj, method).compiled
@@ -66,7 +66,7 @@ class MethodProcess(BaseProcess):
 
             body = obj_ast.body[0].body[:-1]
             bodies.extend(body)
-            extras.extend(m.auxiliary_ast)
+            extras.update(m.auxiliary_ast)
 
         namespace = {k: v for obj, method_name in self.method_order for k, v
                         in

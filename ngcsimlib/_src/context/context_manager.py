@@ -44,18 +44,19 @@ class __context_manager:
         """
         self.__contexts.clear()
 
-    def step(self, location: str) -> bool:
+    def step(self, location: str, catch_empty=True) -> bool:
         """
         Steps one step forward in the hierarchy of contexts
         Args:
             location: The path to step into
+            catch_empty: warn if stepping into a location that does not have a context
 
         Returns: if there is a registered context at the path stepped into (it will
         still step either way)
 
         """
         self.__current_path.append(location)
-        if self.exists():
+        if self.exists() or not catch_empty:
             return True
         warn(f"Stepping into a context path that does not have an associated "
              f"context ({self.join_path()}).")

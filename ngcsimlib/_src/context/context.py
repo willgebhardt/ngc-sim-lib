@@ -344,15 +344,12 @@ class Context(object):
             with open(f"{path}/connections.json", "r") as fp:
                 connectionData = json.load(fp)
                 for connectionRoot, target in connectionData.items():
-                    context_path = ctx.path.split(":")
-                    compartment_path = connectionRoot.split(":")
-                    component_name = compartment_path[len(context_path)]
-                    component = ctx.get_components(component_name, unwrap=True)
-                    if hasattr(component, compartment_path[-1]) and isinstance(getattr(component, compartment_path[-1]), Compartment):
-                        if isinstance(target, str):
-                            getattr(component, compartment_path[-1]).target = target
-                        else:
-                            getattr(component, compartment_path[-1]).target = BaseOp.load_op(target)
+                    dest = global_state_manager.get_compartment(connectionRoot)
+                    if isinstance(target, str):
+                        dest.target = target
+                    else:
+                        dest.target = BaseOp.load_op(target)
+
 
         return ctx
 

@@ -1,15 +1,18 @@
-from typing import Union, Any, Dict
+from typing import Union, Any, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ngcsimlib._src.compartment.compartment import Compartment
 
 
 class __global_state_manager:
     def __init__(self):
-        self.__state = {}
-        self.__compartments = {}
+        self.__state: Dict[str, any] = {}
+        self.__compartments: Dict[str: "Compartment"] = {}
 
-    def add_compartment(self, compartment):
+    def add_compartment(self, compartment: "Compartment"):
         self.__compartments[compartment.root] = compartment
 
-    def get_compartment(self, root):
+    def get_compartment(self, root: str) -> "Compartment":
         return self.__compartments[root]
 
     @staticmethod

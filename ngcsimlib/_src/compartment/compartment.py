@@ -28,7 +28,7 @@ class Compartment(metaclass=CompartmentMeta):
         fixed (default=False): sets the flag for if this compartment is fixed.
     """
     def __init__(self, initial_value: T, fixed: bool = False,
-                 display_name=None, units=None):
+                 display_name=None, units=None, plot_method=None):
         self._initial_value = initial_value
 
         self.name = None
@@ -38,6 +38,7 @@ class Compartment(metaclass=CompartmentMeta):
 
         self.display_name = display_name
         self.units = units
+        self.plot_method = plot_method
 
     @property
     def root(self):

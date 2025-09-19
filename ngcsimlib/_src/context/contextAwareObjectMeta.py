@@ -50,13 +50,6 @@ class ContextAwareObjectMeta(type):
                 error(f"Created context objects must have a name. "
                       f"Error occurred when making an object of class {cls.__name__}")
 
-            # if contextRef is None:
-            #     warn(f"An instance of a context aware object was initialized while "
-            #          f"the current context is None. Did you forget to place it in "
-            #          f"a \"with\" block?")
-            #     return obj
-
-
             if hasattr(obj, "compartments") and isinstance(obj.compartments, Iterable) and not isinstance(obj.compartments, (str, bytes)):
                 for (comp_name, comp) in obj.compartments:
                     if hasattr(comp, "_setup") and callable(comp._setup):

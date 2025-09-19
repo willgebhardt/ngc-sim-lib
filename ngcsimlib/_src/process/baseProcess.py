@@ -21,6 +21,10 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
         self._keyword_order: List[str] = []
         self._watch_list: List[Compartment] = []
 
+    @property
+    def watch_list(self):
+        return self._watch_list
+
     def view_compiled_method(self) -> str:
         """
         Returns: The compiled method as a human-readable code block to assist
@@ -101,6 +105,9 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
             seed_generator = lambda x: x
         return [self.pack_keywords(seed_generator(i), **kwargs) for i in range(length)]
 
+    def is_compiled(self) -> bool:
+        return hasattr(self.run, "compiled")
+
     def run(self, state=None, keywords=None, update=True, row_seed=None, **kwargs):
         """
         Runs the compiled process.
@@ -122,7 +129,7 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
         Returns: The final state, watched values as a tuple
 
         """
-        if hasattr(self.run, "compiled"):
+        if self.is_compiled():
             if state is None:
                 state = global_state_manager.state
             if keywords is None:

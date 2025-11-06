@@ -1,4 +1,5 @@
 import ast
+import inspect
 
 from ngcsimlib._src.context.contextAwareObjectMeta import ContextAwareObjectMeta
 from ngcsimlib._src.global_state.manager import global_state_manager
@@ -83,7 +84,10 @@ class ContextTransformer(ast.NodeTransformer):
             if callable(stateVal):
                 method_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
                 new_node = ast.copy_location(ast.Name(id=method_name, ctx=node.ctx), node)
-                self.needed_methods[method_name] = node.attr
+                if inspect.ismethod(stateVal):
+                    self.needed_methods[method_name] = node.attr
+                else:
+                    self.needed_globals[method_name] = stateVal
                 return ast.fix_missing_locations(new_node)
 
             attr_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
@@ -131,7 +135,6 @@ class ContextTransformer(ast.NodeTransformer):
         if isinstance(node.value, ast.Call):
             call = node.value
             if isinstance(call.func, ast.Attribute) and call.func.attr == "set":
-
                 target = call.func.value
                 target.ctx = ast.Store()
                 if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id == "ctx" and isinstance(target.slice, ast.Constant):

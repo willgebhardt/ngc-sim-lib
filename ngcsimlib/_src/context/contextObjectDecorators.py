@@ -15,13 +15,6 @@ class ContextObjectDecorators:
         cls._type = ContextObjectTypes.process
         return cls
 
-    # @staticmethod
-    # def _operation(cls):
-    #     cls._type = ContextObjectTypes.operation
-    #     return cls
-
-
 
 component = ContextObjectDecorators.component
 process = ContextObjectDecorators.process
-# operation = ContextObjectDecorators._operation

@@ -2,11 +2,12 @@ from .compartmentMeta import CompartmentMeta
 from ngcsimlib._src.global_state.manager import global_state_manager as gState
 from ngcsimlib._src.logger import warn
 import ast
-from typing import TypeVar, Union
+from typing import TypeVar, Union, Set
 from ngcsimlib._src.operations.BaseOp import BaseOp
 from ngcsimlib._src.context.context_manager import global_context_manager as gcm
 
 T = TypeVar('T')
+
 
 class Compartment(metaclass=CompartmentMeta):
     """
@@ -19,17 +20,29 @@ class Compartment(metaclass=CompartmentMeta):
     nothing will access it unless the user manually goes looking for it). The
     compartment should be reflected in the global state immediately after it is
     initialized. Compartments can be flagged as fixed which means that they
-    exist in the global state and can be used in compiled methods but they can
+    exist in the global state and can be used in compiled methods, but they can
     not be changed after creation.
 
     Args
         initial_value: the initial value to set in the global state
 
         fixed (default=False): sets the flag for if this compartment is fixed.
+
+        display_name (default=None): sets the display name of the compartment
+
+        units (default=None): sets the units of the compartment
+
+        plot_method (default=None): sets the plot method of the compartment,
+            this method is to be used by the processes when monitoring this
+            compartment to integrate with the plotting system.
     """
-    def __init__(self, initial_value: T, fixed: bool = False,
-                 display_name=None, units=None, plot_method=None):
-        self._initial_value = initial_value
+    def __init__(self, initial_value: T,
+                 fixed: bool = False,
+                 display_name: str | None = None,
+                 units: str | None = None,
+                 plot_method: str | None = None):
+
+        self._initial_value: T = initial_value
 
         self.name = None
         self._root_target = None
@@ -41,7 +54,7 @@ class Compartment(metaclass=CompartmentMeta):
         self.plot_method = plot_method
 
     @property
-    def root(self):
+    def root(self) -> str | None:
         return self._root_target
 
     @property
@@ -91,7 +104,11 @@ class Compartment(metaclass=CompartmentMeta):
         """
         return self._get_value()
 
-    def get_needed_keys(self):
+    def get_needed_keys(self) -> Set[str]:
+        """
+        Returns: Returns a set of compartment paths that are needed to compute
+            the value of this compartment
+        """
         if isinstance(self.target, BaseOp):
             return self.target.get_needed_keys()
         return set(self.target)
@@ -130,7 +147,7 @@ class Compartment(metaclass=CompartmentMeta):
             other.__rrshift__(self)
 
     @property
-    def target(self):
+    def target(self) -> Union["BaseOp", str]:
         """
         Returns: the current target of the compartment
         """

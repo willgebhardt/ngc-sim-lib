@@ -20,7 +20,7 @@ class CompiledMethod:
     def __init__(self, fn, fn_ast, auxiliary_ast, namespace, extra_globals):
         self._fn = fn
         self._fn_ast = fn_ast
-        self._auxiliary_ast = auxiliary_ast if auxiliary_ast is not None else {}
+        self._auxiliary_ast = auxiliary_ast or {}
         self._namespace = namespace
         self._extra_globals = extra_globals
 

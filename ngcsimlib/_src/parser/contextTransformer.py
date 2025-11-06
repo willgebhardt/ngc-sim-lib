@@ -106,7 +106,7 @@ class ContextTransformer(ast.NodeTransformer):
             subAttr = getattr(attr, node.func.attr)
             if not hasattr(subAttr, "compiled"):
                 error("Attempting to use a method of a subcomponent that is not compiled/compilable")
-
+            
             method_id = f"{attr.context_path.replace(':', '_')}_{node.func.attr}"
             subAst = subAttr.compiled.ast
             subAst.body[0].body = subAst.body[0].body[:-1]

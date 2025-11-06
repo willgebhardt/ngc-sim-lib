@@ -4,6 +4,7 @@ from ngcsimlib.logger import error, warn
 from .context_manager import global_context_manager as gcm
 from collections.abc import Iterable
 
+
 def extract_name(cls, args, kwargs):
     init = cls.__init__
     sig = inspect.signature(init)
@@ -13,6 +14,7 @@ def extract_name(cls, args, kwargs):
     if "name" in bound.arguments:
         return bound.arguments["name"]
     return None
+
 
 class ContextAwareObjectMeta(type):
     def __new__(cls, name, bases, attrs):

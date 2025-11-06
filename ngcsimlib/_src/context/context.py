@@ -40,6 +40,7 @@ class Context(object):
     with block. This means that in order to use any of the compiled methods or
     processes defined the with block must first be left.
     """
+
     def __new__(cls, name: str, *args, **kwargs):
         targetPath = gcm.append_path(addition=name)
         if gcm.exists(targetPath):
@@ -59,8 +60,7 @@ class Context(object):
 
         self.name = name
         self.objects = {}
-        self._connections = {}
-
+        self._connections: Dict[str: Union["Compartment", "BaseOp"]] = {}
 
     def __enter__(self):
         self.__previous_path = gcm.current_path
@@ -72,7 +72,7 @@ class Context(object):
         gcm.step_to(self.__previous_path)
         self.__previous_path = None
 
-    def recompile(self):
+    def recompile(self) -> None:
         """
         Recompiles all the context aware objects inside the context based on
         their priority. The higher the priority is, the sooner it will happen.
@@ -86,38 +86,39 @@ class Context(object):
         """
         priorities = {}
 
-
         for objectType in self.objects.keys():
             _objs = self.get_objects_by_type(objectType)
             for objName, obj in _objs.items():
                 if getattr(obj, "_is_compilable", False):
-                    p = getattr(obj, "_priority", None)
-                    p = 0 if p is None else p
+                    p = getattr(obj, "_priority", None) or 0
 
                     if p not in priorities:
                         priorities[p] = []
 
                     priorities[p].append(obj)
 
-
         keys = sorted(priorities.keys(), reverse=True)
         for key in keys:
             for obj in priorities[key]:
                 obj.compile()
 
-    def registerObj(self, obj: "ContextAwareObjectMeta"):
+    def registerObj(self, obj: "ContextAwareObjectMeta") -> bool:
         """
         Registers an object in the context. The context automatically sorts the
-        objects by type through the "_type" field set on the object/class. It
-        expects to be given a "ContextObjectType" but it is not a requirement.
+        objects by type through the "_type" field set on the object/class.
+        Standard practice is to use the predefined decorators or superclasses
+        found in this library to set this field, but it is not a requirement.
         If an unknown type is provided to the context it will still sort it
         into a bin with other objects of the same type. (Note: _type can be
         either a string or ContextObjectTypes.TYPE, both will be grouped
         together)
 
         Args:
-            obj: The object to register, requires the "_type" field to be
-                defined and not null
+            obj: The object to register in the context
+
+        Returns:
+            boolean: marks if the object was successfully registered in the
+                context
         """
         _type = getattr(obj, "_type", None)
         if _type is None:
@@ -126,10 +127,12 @@ class Context(object):
                  f"object will be limited. Please use one of the provided "
                  f"context object types or define your own to ensure "
                  f"compatability")
-            return
+            return False
 
-        if not isinstance(_type, ContextObjectTypes) and not (
-            isinstance(_type, str) and _type in ContextObjectTypes.__members__):
+        if (not isinstance(_type, ContextObjectTypes) and
+            _type not in self.objects.keys() and
+            not (isinstance(_type, str) and _type in ContextObjectTypes.__members__)
+            ):
             warn(
                 f"Context object type {_type} is not known to this context. It will "
                 f"be stored and tracked but some functionality will be "
@@ -146,9 +149,10 @@ class Context(object):
             warn(f"Trying to register context object with the same name "
                  f"({obj.name}) as another object in this context. Aborting "
                  f"registration!")
-            return
+            return False
 
         self.objects[_type][obj.name] = obj
+        return True
 
     def get_objects_by_type(self, objectType: ContextObjectTypes | str) -> Dict[
         str, "ContextAwareObjectMeta"]:
@@ -213,7 +217,6 @@ class Context(object):
             return _objs[0]
         return _objs
 
-
     def get_components(self, *component_names: str, unwrap: bool = True) -> \
         Union[None, "ContextAwareObjectMeta", List[Union[
             "ContextAwareObjectMeta", None]]]:
@@ -221,12 +224,11 @@ class Context(object):
                                 objectType=ContextObjectTypes.component,
                                 unwrap=unwrap)
 
-    def add_connection(self, source, destination):
+    def add_connection(self, source: Union["Compartment", "BaseOp"], destination: "Compartment"):
         self._connections[destination.root] = source
 
-
     def save_to_json(self, directory: str, model_name: Union[str, None] = None,
-                     custom_save: bool = True, overwrite: bool = False):
+                     custom_save: bool = True, overwrite: bool = False) -> None:
         """
         Saves the context to a collection fo JSON files.
 
@@ -256,7 +258,6 @@ class Context(object):
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
             shutil.rmtree(directory + "/" + model_name)
 
-
         path = make_unique_path(directory, model_name)
 
         contextMeta = {"types": list(self.objects.keys()),
@@ -276,7 +277,8 @@ class Context(object):
 
             for obj_name, obj in _objs.items():
                 objData = {}
-                if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
+                if hasattr(obj, "to_json") and callable(
+                    getattr(obj, "to_json")):
                     objData.update(obj.to_json())
 
                 objData["modulePath"] = modManager.resolve_public_import(obj)
@@ -303,10 +305,8 @@ class Context(object):
         with open(f"{path}/connections.json", "w") as fp:
             json.dump(connections, fp, indent=4)
 
-
-
     @staticmethod
-    def load(directory: str, module_name: str):
+    def load(directory: str, module_name: str) -> "Context":
         if gcm.exists(gcm.append_path(module_name)):
             warn("Trying to load a context that already exists, returning "
                  "existing context")
@@ -330,16 +330,19 @@ class Context(object):
                     kwargs = objData["kwargs"]
                     newObj = objKlass(*args, **kwargs)
 
-                    delayed_load.append((getattr(newObj, "_priority", 0), newObj, objData, type_path))
+                    delayed_load.append((
+                        getattr(newObj, "_priority", 0), newObj,
+                        objData, type_path))
 
-            delayed_load = sorted(delayed_load, key=lambda x: x[0], reverse=True)
+            delayed_load = sorted(delayed_load, key=lambda x: x[0],
+                                  reverse=True)
             for _, obj, data, type_path in delayed_load:
-                if hasattr(obj, "from_json") and callable(getattr(obj, "from_json")):
+                if hasattr(obj, "from_json") and callable(
+                    getattr(obj, "from_json")):
                     obj.from_json(objData)
 
                 if hasattr(obj, "load") and callable(getattr(obj, "load")):
                     obj.load(f"{type_path}/custom")
-
 
             with open(f"{path}/connections.json", "r") as fp:
                 connectionData = json.load(fp)
@@ -350,8 +353,4 @@ class Context(object):
                     else:
                         dest.target = BaseOp.load_op(target)
 
-
         return ctx
-
-
-

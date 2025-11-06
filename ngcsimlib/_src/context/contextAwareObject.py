@@ -44,7 +44,7 @@ class ContextAwareObject(object, metaclass=ContextAwareObjectMeta):
                 "kwargs": safe_kwargs}
         return data
 
-    def compile(self):
+    def compile(self) -> None:
         """
         A wrapper to compile this object, unless a custom compiler is being used
         do not modify this method.

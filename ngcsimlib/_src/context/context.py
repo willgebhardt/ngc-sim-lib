@@ -320,6 +320,7 @@ class Context(object):
             delayed_load = []
 
             for _type in metaData["types"]:
+
                 type_path = f"{path}/{make_safe_filename(_type)}"
                 with open(f"{type_path}/roots.json", "r") as fp:
                     typeRoots = json.load(fp)
@@ -329,7 +330,6 @@ class Context(object):
                     args = objData["args"]
                     kwargs = objData["kwargs"]
                     newObj = objKlass(*args, **kwargs)
-
                     delayed_load.append((
                         getattr(newObj, "_priority", 0), newObj,
                         objData, type_path))
@@ -339,7 +339,7 @@ class Context(object):
             for _, obj, data, type_path in delayed_load:
                 if hasattr(obj, "from_json") and callable(
                     getattr(obj, "from_json")):
-                    obj.from_json(objData)
+                    obj.from_json(data)
 
                 if hasattr(obj, "load") and callable(getattr(obj, "load")):
                     obj.load(f"{type_path}/custom")

@@ -5,6 +5,9 @@ def deprecated(fn):
     def _wrapped(*args, **kwargs):
         warn(fn.__qualname__, "is deprecated")
         return fn(*args, **kwargs)
+
+    _wrapped._is_deprecated = True
+    _wrapped._original = fn
     return _wrapped
 
 
@@ -25,5 +28,8 @@ def deprecate_args(_rebind=True, **arg_list):
                         del kwargs[kwarg]
 
             return fn(*args, **kwargs)
+
+        _wrapped._is_deprecated = True
+        _wrapped._original = fn
         return _wrapped
     return _deprecate_args

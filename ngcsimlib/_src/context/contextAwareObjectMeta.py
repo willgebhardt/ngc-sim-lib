@@ -7,6 +7,13 @@ from collections.abc import Iterable
 
 def extract_name(cls, args, kwargs):
     init = cls.__init__
+
+    if getattr(init, "_is_deprecated", False):
+        unwrapped = getattr(init, "_original", None)
+        if unwrapped is None:
+            error("Failed to find a non deprecated init method")
+        init = unwrapped
+
     sig = inspect.signature(init)
     bound = sig.bind_partial(None, *args, **kwargs)
     bound.apply_defaults()

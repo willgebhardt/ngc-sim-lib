@@ -1,9 +1,7 @@
 """
 ngc libraries have a need for global level configuration which will all be
 handled here. It will also be possible to add custom configuration sections to
-this file with no issues or additional setup. However, the main purpose of these
-configurations are not control specific parts of the model but control ngc
-libraries at a high level.
+this file with no issues or additional setup.
 """
 import json
 from types import SimpleNamespace

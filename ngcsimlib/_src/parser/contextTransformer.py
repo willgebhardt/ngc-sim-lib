@@ -137,15 +137,6 @@ class ContextTransformer(ast.NodeTransformer):
             if isinstance(call.func, ast.Attribute) and call.func.attr == "set":
                 target = call.func.value
                 target.ctx = ast.Store()
-                if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id == "ctx" and isinstance(target.slice, ast.Constant):
-                    atr = target.slice.value.split(":")[-1]
-                    val = getattr(self.obj, atr, None)
-                    if val is not None and isinstance(val, Compartment):
-                        if val.fixed:
-                            error(f"Trying to compile "
-                                  f"\"{self.method.__name__}\" "
-                                  f"on {self.obj.name} and fixed compartment "
-                                  f"{atr} is marked as fixed but has a set call")
 
                 value = call.args[0]
                 return ast.copy_location(ast.Assign(targets=[target], value=value), node)

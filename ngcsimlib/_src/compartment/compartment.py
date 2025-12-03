@@ -2,7 +2,7 @@ from .compartmentMeta import CompartmentMeta
 from ngcsimlib._src.global_state.manager import global_state_manager as gState
 from ngcsimlib._src.logger import warn
 import ast
-from typing import TypeVar, Union, Set
+from typing import TypeVar, Union, Set, Callable
 from ngcsimlib._src.operations.BaseOp import BaseOp
 from ngcsimlib._src.context.context_manager import global_context_manager as gcm
 
@@ -19,14 +19,10 @@ class Compartment(metaclass=CompartmentMeta):
     the global state will no longer change (it will still exist but just
     nothing will access it unless the user manually goes looking for it). The
     compartment should be reflected in the global state immediately after it is
-    initialized. Compartments can be flagged as fixed which means that they
-    exist in the global state and can be used in compiled methods, but they can
-    not be changed after creation.
+    initialized.
 
     Args
         initial_value: the initial value to set in the global state
-
-        fixed (default=False): sets the flag for if this compartment is fixed.
 
         display_name (default=None): sets the display name of the compartment
 
@@ -35,38 +31,39 @@ class Compartment(metaclass=CompartmentMeta):
         plot_method (default=None): sets the plot method of the compartment,
             this method is to be used by the processes when monitoring this
             compartment to integrate with the plotting system.
+
+        auto_save (default=True): a flag for if the compartment should
+            be picked up by other systems for auto saving. Not used specifically
+            by simlib but adds a hook for future use.
     """
     def __init__(self, initial_value: T,
-                 fixed: bool = False,
                  display_name: str | None = None,
                  units: str | None = None,
-                 plot_method: str | None = None):
+                 plot_method: Union[Callable, None] = None,
+                 auto_save: bool = True):
 
         self._initial_value: T = initial_value
 
         self.name = None
         self._root_target = None
         self._target = self._root_target
-        self._fixed = fixed
 
         self.display_name = display_name
         self.units = units
         self.plot_method = plot_method
+        self._auto_save = auto_save
 
     @property
     def root(self) -> str | None:
         return self._root_target
 
     @property
-    def targeted(self) -> bool:
-        return not isinstance(self._target, str) or (self._target != self._root_target)
+    def auto_save(self) -> bool:
+        return self._auto_save
 
     @property
-    def fixed(self) -> bool:
-        """
-        Returns: if this compartment is a fixed value.
-        """
-        return self._fixed
+    def targeted(self) -> bool:
+        return not isinstance(self._target, str) or (self._target != self._root_target)
 
     def _setup(self, compName, path):
         self.name = compName
@@ -90,9 +87,6 @@ class Compartment(metaclass=CompartmentMeta):
             self._initial_value = value
             return
 
-        if self._fixed and gState.check_key(self.target):
-            warn(f"Attempting to set {self._root_target} which is a fixed compartment. Aborting!")
-            return
         if self.target != self._root_target:
             warn(f"Attempting to set {self.target} in {self._root_target}. Aborting!")
             return

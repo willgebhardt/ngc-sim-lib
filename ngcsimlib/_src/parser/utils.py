@@ -145,6 +145,8 @@ def compileObject(obj):
     deferred_compile = []
     for name in dir(obj):
         attr = getattr(obj, name)
+        if isinstance(attr, _methodWrapper):
+            attr = attr._method
         if hasattr(attr, "_is_compilable") and not inspect.isclass(attr):
             if isinstance(type(attr), ContextAwareObjectMeta):
                 compileObject(attr)

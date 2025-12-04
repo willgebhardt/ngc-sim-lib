@@ -1,6 +1,6 @@
 # The Global State
 
-Since ngcsimlib is a simulation library focused on temporal models and dynamical 
+Since NGC-Sim-Lib is a simulation library focused on temporal models and dynamical 
 systems, or models that change over time there, it is foundational that all models 
 (and their respective elements) have some concept of a "state". These states
 might be comprised of a single value that changes/evolves or of a complex set of values
@@ -22,7 +22,7 @@ anything that is needed for your actual model.
 
 ### Adding New Fields to the Global State
 
-If you are new to using ngcsimlib and looking for a way to add values to the
+If you are new to using NGC-Sim-Lib and looking for a way to add values to the
 global state directly and explicitly, stop for a moment and reconsider. Unless 
 you know exactly what you are doing (i.e., doing core development), it is strongly 
 advised to not manually add values to the global state; instead, work through the 

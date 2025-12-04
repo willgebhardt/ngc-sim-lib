@@ -1,12 +1,12 @@
 # Contexts
 
-Contexts, in ngcsimlib, are the top-level containers that hold everything used to
+Contexts, in NGC-Sim-Lib, are the top-level containers that hold everything used to
 define a model / dynamical system. On their own, contexts have no runtime logic; 
 they rely on their internal processes and components to build a complete, working model.
 
 ## Defining a Context
 
-To define a context (`ngcsimlib.Context`), ngcsimlib leverages the `with` block; this 
+To define a context (`ngcsimlib.Context`), NGC-Sim-Lib leverages the `with` block; this 
 means that to create a new context, simply start with the statement 
 `with Context("myContext") as ctx:` and a new context will be created. 
 (<i>Important Note</i>: names are unique; if a context is created with the same name, 
@@ -46,10 +46,8 @@ steps while inside the `with`-block of the process.
 
 ## Exiting the `with` block
 
-When the context exits the `with`-block, it will re-compile the entire model. This
-means that compilation of all parts of the model that needed to be compiled before 
-usage (such as the compiled methods of a process) needs to happen after the 
-`with`-block is exited. Behind the scenes, this is calling `recompile` on the context 
+When the context exits the `with`-block, it will re-compile the entire model. 
+Behind the scenes, this is calling `recompile` on the context 
 itself; it is possible to manually trigger the recompile step, but doing so can 
 break certain connections (between components/compartments), so use this 
 functionality sparingly.

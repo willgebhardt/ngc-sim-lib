@@ -1,6 +1,6 @@
 # Processes
 
-Processes in ngcsimlib offer a central way of defining a specific transition to be 
+Processes in NGC-Sim-Lib offer a central way of defining a specific transition to be 
 taken within a given model (this effectively sets up the behavior of the state-machine 
 that defines the desired dynamical system one wants to simulate). In effect, processes 
 take in as many compilable methods as possible across any number of
@@ -27,14 +27,14 @@ myProcess >> myCompA.forward >> myCompB.forward >> myCompA.evolve >> myCompB.evo
 ```
 
 In both cases, this process will chain the four methods together into a single
-step, only updating the final state that all steps are to complete.
+step, only updating the final state after all steps are complete.
 
 ## Types of Processes
 
 There are two types of processes: the above example would be with what is
 referred to as a `MethodProcess` -- these are used to chain together any
 compilable methods from any number of different components. The other second 
-type of process, called a `JointProcess` in ngcsimlib, is used to chain 
+type of process, called a `JointProcess` in NGC-Sim-Lib, is used to chain 
 together entire processes. 
 JointProcesses are especially useful if there are multiple method processes that
 need to be called but different orders of the processes are needed at different
@@ -85,6 +85,6 @@ iterations of the process. Note that the arguments are slightly different: first
 it now utilizes a `length` argument to indicate the number of rows being produced and, 
 second, it features a `seed_generator` that is used to generate the seed of each row 
 (for instance, to have only even seed values: `seed_generator = lambda x: 2 * x`); if 
-the generator is `None` `seed_generator = lamda x: x` is used. 
+the generator is `None`, then `seed_generator = lamda x: x` is used. 
 After this, the same keyword arguments to define the needed parameters are used as in `pack_keywords`. 
 

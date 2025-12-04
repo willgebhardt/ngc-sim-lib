@@ -1,14 +1,14 @@
 # Compartments
 
-Within ngcsimlib, the global state serves as the backbone of any given model. 
+Within NGC-Sim-Lib, the global state serves as the backbone of any given model. 
 This global state is essentially the culmination of all of the dynamic or changing parts of the model itself. Each 
 value that builds this state is stored within a special "container" that helps track these changes over time -- this 
-is referred to as a "compartment" (`Compartment`).
+is referred to as a `Compartment`.
 
 ## Practical Information
 
 Practically, when working with compartments, there are a few simple things to keep in mind despite the fact that most 
-of ngcsimlib's primary operation is behind-the-scenes bookkeeping. The two main points to note are: 
+of NGC-Sim-Lib's primary operation is behind-the-scenes bookkeeping. The two main points to note are: 
 1. Each compartment holds a value and, thus, setting a compartment with `myCompartment = newValue` will not function as 
    intended since this will overwrite the Python object, i.e., the compartment with `newValue`. Instead, it is 
    important to make use of the `.set()` method to update the value stored inside a compartment so 
@@ -20,7 +20,7 @@ of ngcsimlib's primary operation is behind-the-scenes bookkeeping. The two main 
 ## Technical Information
 
 The follow sections are devoted to explication of more technical information regarding how a compartment functions 
-with in the broader scope of ngcsimlib and, furthermore, to explain how to leverage this information.
+with in the broader scope of NGC-Sim-Lib and, furthermore, to explain how to leverage this information.
 
 ### How Data is Stored (Within a Model Context)
 
@@ -38,7 +38,7 @@ components -- this is at the core of NGC-Learn's and NGC-Sim-Lib's "nodes-and-ca
 through the concept of "targeting,", which is, in essence, just the updating of the path stored within a compartment 
 using the path of a different compartment. This means that, if the targeted compartment goes to retrieve the value 
 stored within it, it will actually retrieve the value of a different compartment (as dictated by the target). When a 
-compartment is in this state -- where it is targeting another compartment -- it is set to read, which only means that 
+compartment is in this state -- where it is targeting another compartment -- it is set to read-only, which only means that 
 it cannot modify a different compartment.
 
 

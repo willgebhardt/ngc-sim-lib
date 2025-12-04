@@ -1,49 +1,44 @@
 # Compartments
 
-Inside ngcsimlib there is the global state as the backbone of any given model.
-This global state is the culmination of all the dynamic or changing parts of the
-model. Each value that builds this state is stored in a special container that
-helps track these changes known as a Compartment.
+Within ngcsimlib, the global state serves as the backbone of any given model. 
+This global state is essentially the culmination of all of the dynamic or changing parts of the model itself. Each 
+value that builds this state is stored within a special "container" that helps track these changes over time -- this 
+is referred to as a "compartment" (`Compartment`).
 
 ## Practical Information
 
-Practically when working with compartments there are a few simple things to keep
-in mind and the rest is all behind the scenes bookkeeping. The first piece to
-keep in mind is that each compartment holds a value and thus setting a
-compartment with `myCompartment = newValue` will not function as intended as
-this will overwrite the python object that is the compartment with `newValue`.
-Instead, make use of the `.set()` method to update the value stored inside a
-compartment so `myCompartment = newValue` becomes `myCompartment.set(newValue)`.
-The second piece of information is that to retrieve a value from the compartment
-use `myCompartment.get()`. These methods to get and set data inside a
-compartment are the two main pieces to remember.
+Practically, when working with compartments, there are a few simple things to keep in mind despite the fact that most 
+of ngcsimlib's primary operation is behind-the-scenes bookkeeping. The two main points to note are: 
+1. Each compartment holds a value and, thus, setting a compartment with `myCompartment = newValue` will not function as 
+   intended since this will overwrite the Python object, i.e., the compartment with `newValue`. Instead, it is 
+   important to make use of the `.set()` method to update the value stored inside a compartment so 
+   `myCompartment = newValue` becomes `myCompartment.set(newValue)`.
+2. In order to retrieve a value from a compartment, use `myCompartment.get()`. These methods of getting and setting 
+   data inside a compartment are important to use when both working with and designing a multi-compartment component 
+   (i.e., `Component`).
 
-## Technical information
+## Technical Information
 
-The follow sections are devoted to more technical information regarding how a
-compartment functions in the broader scope of ngcsimlib and how to leverage that
-information.
+The follow sections are devoted to explication of more technical information regarding how a compartment functions 
+with in the broader scope of ngcsimlib and, furthermore, to explain how to leverage this information.
 
-### How data is stored
+### How Data is Stored (Within a Model Context)
 
-The data stored inside a compartment is not actually stored inside a
-compartment. Instead, it is stored inside the global state and each compartment
-just holds the path or `key`, in the global state to pull a specific piece of
-information. As such it is technically possible to manipulate the value of a
-compartment without actually touching the compartment object created in a
-component. By default, compartments have safeguards to prevent this from happening
-accidentally but directly addressing the compartment in the global state has no
-such safeguards.
+The data stored inside of a compartment is not actually physically stored within a compartment. Instead, it is stored 
+inside of the global state and each compartment effectively holds the path or `key` to the right spot in the global 
+state, allowing it to pull out a specific piece of information. As such, it is technically possible to manipulate the 
+value of a compartment without actually touching the compartment object itself within any given component. By default, 
+compartments have in-built safeguards in order to prevent this from happening accidentally; however, directly addressing 
+the compartment within the global state directly has no such safeguards.
 
-### What is targeting
+### What is "Targeting"?
 
-As discussed in the model building section there is a concept of wiring together
-different compartments of different components. These wires are created through
-the concept of targeting. In esscence targeting is just updating the path stored
-in a compartment with the path of a different compartment. This means that if
-the targeted compartment goes to retireve the value stored in it, it will
-actually retrieve the value for the a different compartment. When a compartment
-is in this state where it is targeted at another compartment it is set to read
-only meaning that it can not modify a different compartment.
+As discussed in the model building section, there is notion of "wiring" together different compartments of different 
+components -- this is at the core of NGC-Learn's and NGC-Sim-Lib's "nodes-and-cables system". These wires are created 
+through the concept of "targeting,", which is, in essence, just the updating of the path stored within a compartment 
+using the path of a different compartment. This means that, if the targeted compartment goes to retrieve the value 
+stored within it, it will actually retrieve the value of a different compartment (as dictated by the target). When a 
+compartment is in this state -- where it is targeting another compartment -- it is set to read, which only means that 
+it cannot modify a different compartment.
 
 

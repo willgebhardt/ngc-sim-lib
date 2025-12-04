@@ -1,31 +1,32 @@
 # Components
 
-Living one step above compartments in a model hierachy rests the component. The
-components hold a collection of both temporally constant values and dynamic
-compartments, in addition they are the lowest place where logic governing the
-dynamics of a system are defined. Generally components are going to be the
-building blocks that are reused multiple times throughout a model to create a
-final dynmical system.
+Living one step above compartments in the NGC-Learn dynamical systems hierachy rests the component. 
+A component (`ngcsimlib.Component`) holds a collection of both temporally constant values as well as dynamic (time-evolving) 
+compartments. In addition, they are the core place where logic governing the dynamics of a system are 
+defined. Generally, components serve as the building blocks that are to be reused multiple times 
+when constructing a complete model of a dynmical system.
 
-## Temporally Constant vs Dynamic Compartments
+## Temporally Constant versus Dynamic Compartments
 
-One important distinction that needs to be highlighted inside a component is the
-difference between a temporally constant value and a dynamic compartment.
-Starting with compartments these values that change over time, generally they
-will have the type `ngcsimlib.Compartment` and be used to track internal values
-of the component. These values can be ones such inputs, decaying values,
-counters, etc. The second catagory of values are temporally constant, these are
-values that will remain fixed on the model is constructed. These values tend to
-include ones such as matrix shapes and coefficients.
+One important distinction that needs to be highlighted within a component is the 
+difference between a temporally constant (or static) value and a dynamic (time-varying) compartment.
+Compartments themselves house values that change over time and, generally, they will have the 
+type `ngcsimlib.Compartment`; note that compartments are to be used to track the internal values 
+of a component. These internal values can be ones such inputs, decaying values, counters, etc. 
+The second kind of values found within a component are known as temporally constant values; these 
+are values (e.g., hyper-parameters, structural parameters, etc.) that will remain fixed / static 
+with constructed model dynamical system. These types of values tend to include common configuration 
+and meta-parameter settings, such as matrix shapes and coefficients.
 
 ## Defining Compilable Methods
 
-Inside a component it is expected that there are methods used to govern the
-temporal dynamics of a system. These compilable methods are decorated
-with `@compilable` and are defined like any regular method. Inside a compilable
-method there will be access to `self`, meaning that to reference a compartment's
-value it is `self.myCompartment.get()`. The only requirement is that any method
-decorated can not have a return value, values should be stored inside their
-respective compartments. In an external step from defining the component a
-transformer will change all of these methods into ones that function with the
-rest of ngcsimlib.
+Inside of a component, it is expected that there will be methods defined that govern the
+temporal dynamics of the system component. These compilable methods are decorated 
+with `@compilable` and are defined like any other regular (Python) method. Within a compilable
+method, there will be access to `self`, which means that, to reference a compartment's
+value, one must write out such a call as: `self.myCompartment.get()`. The only requirement is 
+that any method that is decorated <b>cannot</b> have a return value; values should be stored 
+inside their respective compartments (by making an appeal to their respective set routine, i.e., 
+`self.myCompartment.set(value)`). In an external (compilation) step, outside of the developer's 
+definition of a component, an ngcsimlib transformer will change/convert all of these (decorated) 
+methods into ones that function with the rest of the ngcsimlib back-end.

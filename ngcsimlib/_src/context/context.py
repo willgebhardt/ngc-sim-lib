@@ -305,8 +305,8 @@ class Context(object):
         with open(f"{path}/connections.json", "w") as fp:
             json.dump(connections, fp, indent=4)
 
-    @staticmethod
-    def load(directory: str, module_name: str) -> "Context":
+    @classmethod
+    def load(cls, directory: str, module_name: str) -> "Context":
         if gcm.exists(gcm.append_path(module_name)):
             warn("Trying to load a context that already exists, returning "
                  "existing context")
@@ -316,7 +316,7 @@ class Context(object):
         with open(f"{path}/contextData.json", "r") as f:
             metaData = json.load(f)
 
-        with Context(metaData.get("path", module_name)) as ctx:
+        with cls(metaData.get("path", module_name)) as ctx:
             delayed_load = []
 
             for _type in metaData["types"]:

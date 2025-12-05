@@ -3,6 +3,7 @@ from ngcsimlib._src.process.methodProcess import MethodProcess
 from ngcsimlib._src.process.jointProcess import JointProcess
 from ngcsimlib._src.deprecators import deprecated, deprecate_args
 from ngcsimlib._src.configManager import init_config
+from ngcsimlib._src.configManager import get_config, provide_namespace
 import argparse, os, json
 
 def configure():

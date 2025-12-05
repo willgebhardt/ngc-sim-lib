@@ -41,7 +41,7 @@ $ pip install --editable . # OR pip install -e .
 </pre>
 
 **Version:**<br>
-1.0.0 <!-- -Beta --> <!-- -Alpha -->
+3.0.0 <!-- -Beta --> <!-- -Alpha -->
 
 Authors:
 William Gebhardt, Alexander G. Ororbia II<br>
@@ -50,10 +50,10 @@ Rochester Institute of Technology, Department of Computer Science
 
 ## <b>Copyright:</b>
 
-Copyright (C) 2023 The Neural Adaptive Computing Laboratory - All Rights Reserved<br>
+Copyright (C) 2021 The Neural Adaptive Computing Laboratory - All Rights Reserved<br>
 You may use, distribute and modify this code under the
 terms of the BSD 3-clause license.
 
 You should have received a copy of the BSD 3-clause license with
-this software.<br>
+this software.<br> 
 If not, please [email us](mailto:ago@cs.rit.edu)

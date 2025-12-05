@@ -3,11 +3,12 @@ message: "NGC-Sim-Lib: A Simulation Framework for Supporting NGC-Learn."
 authors:
   - family-names: Gebhardt, Ororbia
     given-names: William, Alex
+    orcid: https://orcid.org/0009-0008-7456-6556
   - family-names: Ororbia
     given-names: Alexander
     orcid: https://orcid.org/0000-0002-2590-1310
 title: "ngc-sim-lib"
-version: 0.2.0
+version: 3.0.0
 identifiers:
   - type: doi
     value: 10.5281/zenodo.10888211

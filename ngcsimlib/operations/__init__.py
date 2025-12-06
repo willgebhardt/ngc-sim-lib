@@ -1,5 +1,5 @@
-from .baseOp import BaseOp
-from .add import add
-from .negate import negate
-from .overwrite import overwrite
-from .summation import summation
+from ngcsimlib._src.operations import (
+    BaseOp as BaseOp,
+    Summation as Summation,
+    Product as Product
+)

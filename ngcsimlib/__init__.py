@@ -6,6 +6,11 @@ from ngcsimlib._src.configManager import init_config
 from ngcsimlib._src.configManager import get_config, provide_namespace
 import argparse, os, json
 
+import pkg_resources
+from pkg_resources import get_distribution
+
+__version__ = get_distribution('ngcsimlib').version
+
 def configure():
     parser = argparse.ArgumentParser(description='Build and run a model using ngclearn')
     parser.add_argument("--config", type=str, help='location of config.json file')

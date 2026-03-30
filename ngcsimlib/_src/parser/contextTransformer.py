@@ -67,42 +67,57 @@ class ContextTransformer(ast.NodeTransformer):
 
     def visit_Attribute(self, node):
         node = self.generic_visit(node)
-        if isinstance(node.value, ast.Name) and node.value.id == "self":
-            stateVal = getattr(self.obj, node.attr)
-            if isinstance(stateVal, Compartment):
-                new_node = ast.copy_location(
-                    stateVal._to_ast(node, 'ctx'),
-                    node
-                )
-                self.needed_keys.union(stateVal.get_needed_keys())
+        stateVal = None
 
-                return ast.fix_missing_locations(new_node)
-
-            if hasattr(stateVal, '_is_compilable') and isinstance(type(stateVal), ContextAwareObjectMeta):
+        if isinstance(node.value, ast.Attribute) and isinstance(node.value.value, ast.Name) and node.value.value.id == "self":
+            subObject = getattr(self.obj, node.value.attr)
+            if hasattr(subObject, '_is_compilable') and isinstance(
+                type(subObject), ContextAwareObjectMeta):
                 return node
 
-            if callable(stateVal):
-                method_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
-                new_node = ast.copy_location(ast.Name(id=method_name, ctx=node.ctx), node)
-                if inspect.ismethod(stateVal):
-                    self.needed_methods[method_name] = node.attr
-                else:
-                    self.needed_globals[method_name] = stateVal
-                return ast.fix_missing_locations(new_node)
+            stateVal = getattr(subObject, node.attr)
 
-            attr_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
-            new_node = ast.copy_location(ast.Name(id=attr_name, ctx=node.ctx), node)
-            self.needed_globals[attr_name] = stateVal
+        if isinstance(node.value, ast.Name) and node.value.id == "self":
+            stateVal = getattr(self.obj, node.attr)
+            # if isinstance(stateVal, ContextAwareObjectMeta):
+
+        if stateVal is None:
+            return node
+
+        if isinstance(stateVal, Compartment):
+            new_node = ast.copy_location(
+                stateVal._to_ast(node, 'ctx'),
+                node
+            )
+            self.needed_keys.union(stateVal.get_needed_keys())
+
             return ast.fix_missing_locations(new_node)
 
-        return node
+
+
+        if hasattr(stateVal, '_is_compilable') and isinstance(type(stateVal), ContextAwareObjectMeta):
+            return node
+
+        if callable(stateVal):
+            method_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
+            new_node = ast.copy_location(ast.Name(id=method_name, ctx=node.ctx), node)
+            if inspect.ismethod(stateVal):
+                self.needed_methods[method_name] = node.attr
+            else:
+                self.needed_globals[method_name] = stateVal
+
+            return ast.fix_missing_locations(new_node)
+
+        attr_name = f"{self.obj.context_path.replace(':', '_')}_{node.attr}"
+        new_node = ast.copy_location(ast.Name(id=attr_name, ctx=node.ctx), node)
+        self.needed_globals[attr_name] = stateVal
+        return ast.fix_missing_locations(new_node)
 
     def visit_Call(self, node):
-
         node = self.generic_visit(node)
-
         if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Attribute) \
             and isinstance(node.func.value.value, ast.Name) and node.func.value.value.id == "self":
+
             attr = getattr(self.obj, node.func.value.attr)
             if not isinstance(type(attr), ContextAwareObjectMeta):
                 return node

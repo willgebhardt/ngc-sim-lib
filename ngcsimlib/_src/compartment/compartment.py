@@ -136,6 +136,7 @@ class Compartment(metaclass=CompartmentMeta):
             gcm.current_context.add_connection(other, self)
         self.target = other
 
+
     def __rshift__(self, other):
         if isinstance(other, Compartment):
             other.__rrshift__(self)
@@ -145,6 +146,8 @@ class Compartment(metaclass=CompartmentMeta):
         """
         Returns: the current target of the compartment
         """
+        if isinstance(self._target, Compartment):
+            return self._target.target
         return self._target
 
     @target.setter
@@ -161,10 +164,19 @@ class Compartment(metaclass=CompartmentMeta):
             return
 
         if isinstance(value, Compartment):
-            self._target = value.target
+            # if value.target is None:
+            self._target = value
+            # self._target = value.target
             return
 
         if isinstance(value, str):
             self._target = value
 
         raise ValueError("Invalid compartment target ", value)
+
+
+    @classmethod
+    def floating(cls, initial_value, name):
+        comp = cls(initial_value)
+        comp._setup(name, gcm.current_context.path)
+        return comp

@@ -151,7 +151,7 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
     def _bind(self, values):
         output = {}
         for comp, val in zip(self._watch_list, values):
-            output[comp.name] = val
+            output[comp.root] = val
         return output
 
 

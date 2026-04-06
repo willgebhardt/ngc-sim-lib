@@ -108,7 +108,7 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
     def is_compiled(self) -> bool:
         return hasattr(self.run, "compiled")
 
-    def run(self, state=None, keywords=None, update=True, row_seed=None, **kwargs):
+    def run(self, state=None, keywords=None, update=True, row_seed=None, bind_names=False, **kwargs):
         """
         Runs the compiled process.
 
@@ -121,12 +121,16 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
                 finished running.
             row_seed: if no keywords are provided it will pass this value when
                 packing the keywords.
+            bind_names: True will return a dict where the keys are the
+                compartment names, otherwise will return a
+                simple list
 
             **kwargs: If keywords are not prepacked, either a constant value or
                 lambda expression for producing keyword arguments based on a
                 given seed.
 
-        Returns: The final state, watched values as a tuple
+        Returns: The final state, watched values as a tuple or dict based on
+            bind_names
 
         """
         if self.is_compiled():
@@ -137,11 +141,19 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
             final_state, other = self.run.compiled(state, keywords)
             if update:
                 global_state_manager.set_state(final_state)
-            return final_state, other
+            return final_state, self._bind(other) if bind_names else other
         else:
             warn("Trying to run a process while it is not compiled. Make sure "
                  "that the context that the process was created in has been "
                  "closed before trying to run the method.")
+
+
+    def _bind(self, values):
+        output = {}
+        for comp, val in zip(self._watch_list, values):
+            output[comp.name] = val
+        return output
+
 
 
     def _parse(self) -> Tuple[List, List, List, Dict]:

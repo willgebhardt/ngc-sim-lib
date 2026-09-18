@@ -1,3 +1,5 @@
+from typing import Dict, Set
+
 from ngcsimlib._src.compartment.compartmentMeta import CompartmentMeta
 from ngcsimlib._src.modules.modules_manager import modules_manager as modManager
 from ngcsimlib._src.global_state.manager import global_state_manager as gsm
@@ -87,8 +89,18 @@ class BaseOp(metaclass=CompartmentMeta):
             other.__rrshift__(self)
 
     @staticmethod
-    def load_op(op):
+    def load_op(op: Dict):
         klass = modManager.import_module(op['modulePath'])
         newOp = klass()
         newOp.from_json(op)
         return newOp
+
+    @staticmethod
+    def get_requirements(op: Dict) -> Set[str]:
+        needed_keys = set()
+        for compartment_path in op['compartments']:
+            if isinstance(compartment_path, str):
+                needed_keys.add(compartment_path)
+            else:
+                needed_keys.union(BaseOp.get_requirements(compartment_path))
+        return needed_keys

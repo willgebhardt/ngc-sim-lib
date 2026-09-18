@@ -5,6 +5,7 @@ from ngcsimlib._src.parser.utils import CompiledMethod
 from ngcsimlib._src.context.context_manager import global_context_manager
 from ngcsimlib._src.global_state.manager import global_state_manager
 from ngcsimlib._src.context.context import ContextObjectTypes
+from ngcsimlib._src.logger import error
 
 from typing import List
 
@@ -60,20 +61,28 @@ class JointProcess(BaseProcess):
         return bodies, extras, list(key_set), namespace
 
     def to_json(self):
-        data = {"args": [self.name],
-                "kwargs": {},
-                "process_order": [p.name for p in self.process_order],
+        data = super().to_json()
+        data.update({
+                "process_order": [{
+                    "name": p.name,
+                    "path": global_context_manager.trim_last(p.context_path)
+                } for p in self.process_order],
                 "watch_list": [compartment.root for compartment in self._watch_list]
-                }
+            })
         return data
 
     def from_json(self, data):
         process_order = data.get("process_order", [])
-        ctx = global_context_manager.current_context
-        procs = ctx.get_objects(*process_order, objectType=ContextObjectTypes.process)
-        for proc in procs:
-            if proc is not None and isinstance(proc, BaseProcess):
-                self.then(proc)
+        for process in process_order:
+            process_context = global_context_manager.get_context(process["path"])
+            if process_context is None:
+                error(f"Failed to find a context at {process['path']} while"
+                      f"loading joint process {self.name}")
+
+            # procs = ctx.get_objects(*process_order, objectType=ContextObjectTypes.process)
+        # for proc in procs:
+        #     if proc is not None and isinstance(proc, BaseProcess):
+        #         self.then(proc)
 
         watch_list = data.get("watch_list", [])
         for compartment_root in watch_list:

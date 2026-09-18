@@ -2,6 +2,7 @@ from ngcsimlib._src.parser.utils import CompiledMethod
 from ngcsimlib._src.global_state.manager import global_state_manager
 from ngcsimlib._src.context.context_manager import global_context_manager
 from ngcsimlib._src.process.baseProcess import BaseProcess
+from ngcsimlib._src.logger import info
 
 import ast
 from typing import Dict, Any, Tuple, List
@@ -34,7 +35,6 @@ class MethodProcess(BaseProcess):
         super().__init__(name)
         self.method_order = []
 
-
     def then(self, method):
         """
         Used to specify the order of operations inside the process.
@@ -49,9 +49,11 @@ class MethodProcess(BaseProcess):
     def __rshift__(self, method):
         return self.then(method)
 
-    def _parse(self) -> Tuple[List, Dict, List, Dict]:
+    def _parse(self) -> Tuple[List, Dict, List, Dict, List, List]:
         bodies = []
         extras = {}
+        read_compartments = []
+        wrote_compartments = []
         key_set = set()
         for obj, method in self.method_order:
             m: CompiledMethod = getattr(obj, method).compiled
@@ -63,16 +65,20 @@ class MethodProcess(BaseProcess):
                 if arg.arg != "ctx":
                     key_set.add(arg.arg)
 
-
             body = obj_ast.body[0].body[:-1]
+
+            body = body[len(m.read_compartments):]
             bodies.extend(body)
             extras.update(m.auxiliary_ast)
+            read_compartments.extend(m.read_compartments)
+            wrote_compartments.extend(m.wrote_compartments)
+
 
         namespace = {k: v for obj, method_name in self.method_order for k, v
                         in
                         getattr(obj, method_name).compiled.namespace.items()}
 
-        return bodies, extras, list(key_set), namespace
+        return bodies, extras, list(key_set), namespace, read_compartments, wrote_compartments
 
 
     def to_json(self) -> Dict[str, Any]:
@@ -82,16 +88,18 @@ class MethodProcess(BaseProcess):
 
         Returns: A dictionary of data that can be serialized by JSON.
         """
-        data = {"args": [self.name],
-                "kwargs": {},
-                "method_order": [
-                        {"name": obj.name, "method": method} for obj, method in self.method_order
-                    ],
-                "watch_list": [
+        data = super().to_json()
+        data.update({
+            "method_order": [
+                    {"name": obj.name,
+                     "parent": global_context_manager.trim_last(obj.context_path),
+                     "method": method} for obj, method in self.method_order
+                ],
+            "watch_list": [
                     compartment.root for compartment in self._watch_list
                 ]
 
-                }
+                })
         return data
 
     def from_json(self, data: Dict[str, Any]) -> None:

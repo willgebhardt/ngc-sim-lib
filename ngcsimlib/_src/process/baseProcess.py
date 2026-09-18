@@ -1,4 +1,4 @@
-from ngcsimlib._src.context.contextAwareObjectMeta import ContextAwareObjectMeta
+from ngcsimlib._src.context.contextAwareObject import ContextAwareObject
 from ngcsimlib._src.context.contextObjectDecorators import process
 from ngcsimlib._src.global_state.manager import global_state_manager
 from ngcsimlib._src.logger import warn, error
@@ -15,9 +15,9 @@ T = TypeVar('T')
 @compilable
 @priority(-1)
 @process
-class BaseProcess(metaclass=ContextAwareObjectMeta):
+class BaseProcess(ContextAwareObject):
     def __init__(self, name):
-        self.name = name
+        super().__init__(name)
         self._keyword_order: List[str] = []
         self._watch_list: List[Compartment] = []
 
@@ -156,11 +156,11 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
 
 
 
-    def _parse(self) -> Tuple[List, List, List, Dict]:
+    def _parse(self) -> Tuple[List, List, List, Dict, List, List]:
         raise NotImplemented
 
     def compile(self):
-        bodies, extras, key_list, namespace = self._parse()
+        bodies, extras, key_list, namespace, read_compartments, wrote_compartments = self._parse()
 
         self._keyword_order = key_list
 
@@ -178,9 +178,50 @@ class BaseProcess(metaclass=ContextAwareObjectMeta):
                 ctx=ast.Load()
             )
 
+
+        reads = []
+        for read in set(read_compartments):
+            reads.append(ast.Assign(
+                targets=[
+                    ast.Name(
+                        id="update_" + read.replace(":", "_"),
+                        ctx=ast.Store()
+                    )
+                ],
+                value=ast.Subscript(
+                    value=ast.Name(id="ctx", ctx=ast.Load()),
+                    slice=ast.Constant(value=read),
+                    ctx=ast.Load()
+                )
+            ))
+
+
+        bodies = reads + bodies
+
+        keys = []
+        values = []
+
+        for key in set(wrote_compartments):
+            keys.append(ast.Constant(value=key))
+            values.append(
+                ast.Name(
+                    id="update_" + key.replace(":", "_"),
+                    ctx=ast.Load()
+                )
+            )
+
+
         bodies.append(ast.Return(value=ast.Tuple(
             elts=[
-                ast.Name(id='ctx', ctx=ast.Load()),
+                ast.Dict(
+                    keys=[
+                        None,  # **ctx unpack
+                        *keys
+                    ],
+                    values=[
+                        ast.Name(id="ctx", ctx=ast.Load()),
+                        *values
+                    ]),
                 watched
             ], ctx=ast.Load())))
 

@@ -7,10 +7,10 @@ if TYPE_CHECKING:
 Path = Union[List[str], str, None]
 
 class __context_manager:
-    def __init__(self, seperator: str = ":"):
+    def __init__(self, separator: str = ":"):
         self.__contexts: Dict[str, "Context"] = {}
         self.__current_path: List[str] = []
-        self.__seperator: str = seperator
+        self.__separator: str = separator
 
     @property
     def current_context(self) -> Union["Context", None]:
@@ -130,7 +130,7 @@ class __context_manager:
             return self.join_path(self.__current_path)
         if isinstance(path, str):
             return path
-        return self.__seperator.join(path)
+        return self.__separator.join(path)
 
     def split_path(self, path: Path = None) -> List[str]:
         """
@@ -145,7 +145,7 @@ class __context_manager:
             return self.__current_path
         if isinstance(path, list):
             return path
-        return path.split(self.__seperator)
+        return path.split(self.__separator)
 
     def append_path(self, rootPath: Path = None, addition: Path = None) -> str:
         """
@@ -167,11 +167,11 @@ class __context_manager:
         if isinstance(addition, list):
             if _path == "":
                 return self.join_path(addition)
-            return self.join_path(rootPath) + self.__seperator + self.join_path(addition)
+            return self.join_path(rootPath) + self.__separator + self.join_path(addition)
 
         if _path == "":
             return addition if addition is not None else ""
-        return _path + self.__seperator + addition
+        return _path + self.__separator + addition
 
     def register_context(self, path: Path, context: "Context", overwrite: bool = False):
         """
@@ -194,7 +194,7 @@ class __context_manager:
         if self.exists(_path):
             warn(f"Overwriting existing context at path ({_path}).")
 
-        self.__contexts[path] = context
+        self.__contexts[_path] = context
 
     def register_context_local(self, local_path: Path, context: "Context",
                                overwrite: bool = True) -> bool:
@@ -230,5 +230,31 @@ class __context_manager:
             warn(f"Trying to unregister context at path ({_path}), "
                  f"but no context was found.")
             return False
+
+    def trim_last(self, path: Path) -> Path:
+        if path is None:
+            return ""
+        if isinstance(path, list):
+            if len(path) > 0:
+                return path[:-1]
+            return []
+        if isinstance(path, str):
+            return self.join_path(self.trim_last(self.split_path(path)))
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}("
+            f"seperator={self.__separator!r}, "
+            f"contexts={self.__contexts!r}, "
+            f"current_path={self.__current_path!r}"
+            f")"
+        )
+
+    def __str__(self) -> str:
+        paths = list(self.__contexts.keys())
+        if not paths:
+            return f"Current path: {self.current_path!r}\n" f"Valid paths: <none>"
+        return (f"Current path: {self.current_path!r}\n" f"Valid paths:\n"
+                + "\n".join(f" - {path}" for path in paths))
 
 global_context_manager = __context_manager()

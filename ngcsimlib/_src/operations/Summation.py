@@ -13,6 +13,6 @@ class Summation(BaseOp):
         self.astOp = ast.Add()
 
     def _get_value(self):
-        return sum(self._comps)
+        return sum([c.get() for c in self._comps])
 
 

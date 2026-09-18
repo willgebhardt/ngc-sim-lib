@@ -24,6 +24,12 @@ def extract_name(cls, args, kwargs):
 
 
 class ContextAwareObjectMeta(type):
+    """
+    This is the metaclass for objects that want to interact with the context
+    they were created in. Generally use the base class "ContextAwareObject" over
+    this metaclass.
+    """
+
     def __new__(cls, name, bases, attrs):
         if '__enter__' not in attrs:
             def __enter__(self):
@@ -40,20 +46,24 @@ class ContextAwareObjectMeta(type):
 
         return super().__new__(cls, name, bases, attrs)
 
-    """
-    This is the metaclass for objects that want to interact with the context
-    they were created in. Generally use the base class "ContextAwareObject" over
-    this metaclass.
-    """
+    @staticmethod
+    def _default_existing_instance(cls, *args, **kwargs):
+        return None
+
     def __call__(cls, *args, **kwargs):
+        get_existing = getattr(cls, "_existing_instance", None)
+        existing = get_existing(*args, **kwargs) if get_existing is not None else None
+        if existing is not None:
+            return existing
+
         obj = cls.__new__(cls, *args, **kwargs)
         obj._inferred_name = extract_name(cls, args, kwargs)
 
         with obj:
             cls.__init__(obj, *args, **kwargs)
-
             obj._args = args
             obj._kwargs = kwargs
+
 
             if not hasattr(obj, 'name'):
                 error(f"Created context objects must have a name. "
@@ -68,3 +78,4 @@ class ContextAwareObjectMeta(type):
         if contextRef is not None:
             contextRef.registerObj(obj)
         return obj
+

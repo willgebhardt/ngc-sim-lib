@@ -1,19 +1,45 @@
-from typing import Union, Any, Dict, TYPE_CHECKING
+from typing import Union, Any, Dict, TYPE_CHECKING, Set
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from ngcsimlib._src.compartment.compartment import Compartment
 
+@dataclass(frozen=True)
+class DeferredConnection:
+    targetCompartment: str
+    source: str | Dict
+    neededKeys: Set[str]
 
 class __global_state_manager:
     def __init__(self):
         self.__state: Dict[str, any] = {}
         self.__compartments: Dict[str: "Compartment"] = {}
+        self.__promises: Set[DeferredConnection] = set()
 
     def add_compartment(self, compartment: "Compartment"):
         self.__compartments[compartment.root] = compartment
 
     def get_compartment(self, root: str) -> "Compartment":
         return self.__compartments[root]
+
+    def add_promise(self, promise: DeferredConnection):
+        self.__promises.add(promise)
+
+    def resolve_deferred_connections(self) -> bool:
+        from ngcsimlib._src.operations.BaseOp import BaseOp
+        for promise in self.__promises:
+            if promise.neededKeys.issubset(self.__compartments.keys()):
+                dest = self.get_compartment(promise.targetCompartment)
+                if isinstance(promise.source, str):
+                    dest.target = promise.source
+                else:
+                    dest.target = BaseOp.load_op(promise.source)
+
+        return self.valid
+
+    @property
+    def valid(self):
+        return len(self.__promises) == 0
 
     @staticmethod
     def make_key(path: str, local_key: str) -> str:

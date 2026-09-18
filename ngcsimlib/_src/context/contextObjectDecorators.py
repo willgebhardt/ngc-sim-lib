@@ -1,4 +1,4 @@
-from .context import ContextObjectTypes
+from ngcsimlib._src.typing.ContextObjectTypes import ContextObjectTypes
 
 class ContextObjectDecorators:
     """
@@ -15,6 +15,12 @@ class ContextObjectDecorators:
         cls._type = ContextObjectTypes.process
         return cls
 
+    @staticmethod
+    def context(cls):
+        cls._type = ContextObjectTypes.context
+        return cls
+
 
 component = ContextObjectDecorators.component
 process = ContextObjectDecorators.process
+context = ContextObjectDecorators.context

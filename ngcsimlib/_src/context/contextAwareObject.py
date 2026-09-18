@@ -16,6 +16,8 @@ class ContextAwareObject(object, metaclass=ContextAwareObjectMeta):
     def __init__(self, name: str):
         self.name = name
         self.context_path = gcm.current_path
+        self._args = {}
+        self._kwargs = {}
 
     def to_json(self) -> Dict[str, Any]:
         """
@@ -41,7 +43,8 @@ class ContextAwareObject(object, metaclass=ContextAwareObjectMeta):
                 warn(f"In {self.name}, unable to serialize keyword argument {key}: {val}")
 
         data = {"args": safe_args,
-                "kwargs": safe_kwargs}
+                "kwargs": safe_kwargs,
+                "priority": getattr(self, "_priority", 0)}
         return data
 
     def compile(self) -> None:

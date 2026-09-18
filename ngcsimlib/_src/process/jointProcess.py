@@ -4,7 +4,7 @@ from ngcsimlib._src.process.baseProcess import BaseProcess
 from ngcsimlib._src.parser.utils import CompiledMethod
 from ngcsimlib._src.context.context_manager import global_context_manager
 from ngcsimlib._src.global_state.manager import global_state_manager
-from ngcsimlib._src.context.context import ContextObjectTypes
+from ngcsimlib._src.typing import ContextObjectGroups
 from ngcsimlib._src.logger import error
 
 from typing import List

@@ -6,7 +6,6 @@ from datetime import datetime
 
 def _concatArgs(func):
     """Internal Decorator for concatenating arguments into a single string"""
-
     def wrapped(*wargs, sep=" ", end="", **kwargs):
         msg = sep.join(str(a) for a in wargs) + end
         return func(msg, **kwargs)

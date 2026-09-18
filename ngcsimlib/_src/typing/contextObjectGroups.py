@@ -1,6 +1,6 @@
 from enum import Enum
 
-class ContextObjectTypes(Enum):
+class ContextObjectGroups(Enum):
     """
     In order for context to compile each of the contextAwareObjects built inside
     of them they need to know what type of object it is. These values are
@@ -10,3 +10,4 @@ class ContextObjectTypes(Enum):
     component = "component"
     process = "process"
     context = "context"
+    unknown = "unknown"

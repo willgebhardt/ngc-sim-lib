@@ -1,76 +1,68 @@
 import json
-from typing import TYPE_CHECKING, List, Dict, Union, Tuple
+from typing import List, Dict, Union, TypeAlias
 from .context_manager import global_context_manager as gcm
 from ngcsimlib.logger import warn
 from ngcsimlib._src.utils.io import make_unique_path, make_safe_filename
 from ngcsimlib._src.utils.priority import priority
 from ngcsimlib._src.modules.modules_manager import modules_manager as modManager
 from ngcsimlib._src.operations.BaseOp import BaseOp
-
-from ngcsimlib._src.global_state.manager import global_state_manager, DeferredConnection
-from ngcsimlib._src.context.contextObjectDecorators import *
+from ngcsimlib._src.global_state.manager import global_state_manager, \
+    DeferredConnection
+from ngcsimlib._src.context.contextAwareObject import ContextAwareObject
 from ngcsimlib._src.deprecators import deprecated
 
+from ngcsimlib._src.typing import ContextObject, context, FilterResultFormat, FilterResult, ContextObjectGroups
+
 import os, shutil
-from enum import Enum
 
 from ngcsimlib._src.compartment.compartment import Compartment
-
-from .contextAwareObjectMeta import ContextAwareObjectMeta
-
-from ngcsimlib._src.typing.ContextObject import ContextObject
-
-
-class FilterFormat(Enum):
-    DICT = "DICT"
-    LIST = "LIST"
-    SINGLE = "SINGLE"
 
 
 class _ObjectFilter:
     def __init__(self, sourceContext: "Context",
-                 fallbackFormat: FilterFormat = FilterFormat.LIST):
+                 fallbackFormat: FilterResultFormat = FilterResultFormat.LIST):
         self.sourceContext = sourceContext
         self.fallbackFormat = fallbackFormat
 
     def __format(self, values: Dict[str, ContextObject | None],
-                 format: FilterFormat,
-                 order: List[str] | None = None):
-        match format:
-            case FilterFormat.DICT:
+                 resultFormat: FilterResultFormat,
+                 requested_order: List[str] | None = None) -> FilterResult:
+        match resultFormat:
+            case FilterResultFormat.DICT:
                 return values
-            case FilterFormat.LIST:
-                if order is None:
+            case FilterResultFormat.LIST:
+                if requested_order is None:
                     return list(values.values())
-                return [values.get(key, None) for key in order]
-            case FilterFormat.SINGLE:
-                if len(values.keys()) == 1:
-                    return list(values.values())[0]
-                return self.__format(values, self.fallbackFormat, order)
+                return [values.get(key, None) for key in requested_order]
+            case FilterResultFormat.SINGLE:
+                if len(values) == 1:
+                    return next(iter(values.values()))
+                return self.__format(values, self.fallbackFormat, requested_order)
             case _:
-                return self.__format(values, self.fallbackFormat, order)
+                return self.__format(values, self.fallbackFormat, requested_order)
 
-    def by_type(self, obj_type: ContextObjectTypes | str,
-                format: FilterFormat = FilterFormat.DICT):
+    def by_group(self, obj_group: ContextObjectGroups | str,
+                 resultFormat: FilterResultFormat = FilterResultFormat.DICT) -> FilterResult:
         """
-        Filters the source context's registered objects by the provided type.
-        :param obj_type: The type to filter by
-        :param format: The format the output will try to match
-        :return: All objects matching the provided type
+        Filters the source context's registered objects by the provided group.
+        :param obj_group: The group to filter by
+        :param resultFormat: The format the output will try to match
+        :return: All objects matching the provided group
         """
         found = {}
         for obj_name, obj in self.sourceContext.objects.items():
-            _type = getattr(obj, "_type", None)
-            if _type == obj_type:
+            _group = getattr(obj, "_group", ContextObjectGroups.unknown)
+            if _group == obj_group:
                 found[obj_name] = obj
 
-        return self.__format(found, format)
+        return self.__format(found, resultFormat)
 
-    def by_name(self, *names: str, format: FilterFormat = FilterFormat.SINGLE):
+    def by_name(self, *names: str,
+                resultFormat: FilterResultFormat = FilterResultFormat.SINGLE) -> FilterResult:
         """
         Filters the source context's registered objects by the provided names.
         :param names: the names to filter by
-        :param format: The format the output will try to match
+        :param resultFormat: The format the output will try to match
         :return: All objects matching the provided names
         """
         found = {}
@@ -82,20 +74,20 @@ class _ObjectFilter:
             if name not in found:
                 found[name] = None
 
-        return self.__format(found, format, order=list(names))
+        return self.__format(found, resultFormat, requested_order=list(names))
 
-    def all(self, format: FilterFormat = FilterFormat.DICT):
+    def all(self, resultFormat: FilterResultFormat = FilterResultFormat.DICT) -> FilterResult:
         """
         Flattens and returns all objects
-        :param format: The format the output will try to match
+        :param resultFormat: The format the output will try to match
         :return: All objects
         """
-        return self.__format(self.sourceContext.objects, format)
+        return self.__format(self.sourceContext.objects, resultFormat)
 
 
 @context
 @priority(10)
-class Context(metaclass=ContextAwareObjectMeta):
+class Context(ContextAwareObject):
     """
     The context object is the container that holds all the information for a
     model. Each context will keep track of all the contextAwareObjects built
@@ -126,69 +118,93 @@ class Context(metaclass=ContextAwareObjectMeta):
         return instance
 
     def __init__(self, name: str):
-        self.name = name
+        super().__init__(name)
         self.objects: Dict[str, ContextObject] = {}
         self._connections: Dict[str, Union["Compartment", "BaseOp"]] = {}
         self.__filter = _ObjectFilter(self)
-        gcm.register_context_local(name, self)
+        gcm.register_context_local(self)
+
 
     @property
-    def object_filter(self):
+    def object_filter(self) -> _ObjectFilter:
+        """
+        Provides access to the context's regirstered objects via a filter
+        :return: The interface for the object filter
+        """
         return self.__filter
 
     @property
-    def components(self):
-        return self.object_filter.by_type(ContextObjectTypes.component)
+    def components(self) -> Dict[str, ContextObject]:
+        """
+        A helper to filter all registered ContextObject in the `component`
+        group
+
+        :return: A dict of {path, ContextObject}
+        """
+        return self.object_filter.by_group(ContextObjectGroups.component)
 
     @property
-    def processes(self):
-        return self.object_filter.by_type(ContextObjectTypes.process)
+    def processes(self) -> Dict[str, ContextObject]:
+        """
+        A helper to filter all registered ContextObject in the `process`
+        group
+
+        :return: A dict of {path, ContextObject}
+        """
+        return self.object_filter.by_group(ContextObjectGroups.process)
 
     @property
-    def subcontexts(self):
-        return self.object_filter.by_type(ContextObjectTypes.context)
+    def contexts(self) -> Dict[str, ContextObject]:
+        """
+        A helper to filter all registered ContextObject in the `context` group
+
+        :return: A dict of {path, ContextObject}
+        """
+        return self.object_filter.by_group(ContextObjectGroups.context)
 
     def __enter__(self):
         self.__previous_path = gcm.current_path
         gcm.step_to(self.path)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_group, exc_val, exc_tb):
+        print("Exiting", self.name)
         gcm.step_to(self.__previous_path)
         self.__previous_path = None
+        self.compile()
 
-    def recompile(self) -> None:
+    def compile(self) -> None:
         """
-        Recompiles all the context aware objects inside the context based on
-        their priority. The higher the priority is, the sooner it will happen.
-        0 is the default and -1 is reserved for processes and other objects that
-        expect all the other objects to be compiled first.
+        Attempts to compile all ContextObjects registered with the context.
+        Compiling order is controlled by each object's priority.
+        All objects that do not have a priority are assigned the default
+        priority of zero.
 
-        If custom objects are being made that do not rely on the existing
-        metaclasses and decorators, an object can be flagged as compilable by
-        giving it the field "_is_compilable" and the priority can be set with
-        "_priority".
+        As not every ContextObject is required to be compilable, ensure that
+        the "is_compilable" attribute is set to True.
         """
         priorities = {}
 
         for obj in self.objects.values():
             if (getattr(obj, "_is_compilable", False) and
-            hasattr(obj, "compile") and callable(obj.compile)):
+                hasattr(obj, "compile") and callable(obj.compile)):
                 p = getattr(obj, "_priority", None) or 0
                 if p not in priorities:
                     priorities[p] = []
 
                 priorities[p].append(obj)
-
         keys = sorted(priorities.keys(), reverse=True)
         for key in keys:
             for obj in priorities[key]:
                 obj.compile()
 
+    def recompile(self) -> None:
+        self.compile()
+
     def registerObj(self, obj: ContextObject) -> bool:
         """
         Registers an object in the context. Will accept any object that follows
-        the required protocol. For complete registration '_type' is required,
+        the required protocol. For complete registration '_group' is required,
         if it is missing only certain
 
         Args:
@@ -213,49 +229,50 @@ class Context(metaclass=ContextAwareObjectMeta):
             return False
 
         self.objects[obj_name] = obj
-        _type = getattr(obj, "_type", None)
-        if _type is None:
+        _group = getattr(obj, "_group", None)
+        if _group is None:
             warn(f"Partial registration of {obj_name}! During registration no "
-                 f"\"_type\" flag was found. Object will be grouped as "
+                 f"\"_group\" flag was found. Object will be grouped as "
                  f"\"unknown\" while saving, and this object will not appear "
-                 f"in type filters. To handle this flag automatically "
+                 f"in group filters. To handle this flag automatically "
                  f"ngcsimlib provides both decorators and base classes as a "
                  f"convenience.")
         return True
 
-    @deprecated("Use myContext.object_filter.by_type instead")
-    def get_objects_by_type(self, objectType: ContextObjectTypes | str) -> Dict[
+    @deprecated(custom_message="Use Context.object_filter.by_group instead")
+    def get_objects_by_type(self, objectGroup: ContextObjectGroups | str) -> \
+    Dict[
         str, ContextObject]:
         """
-        Gets the group of objects of the designated type tracked by this
+        Gets the group of objects of the designated group tracked by this
         context.
 
         Args:
-            objectType: The object type to extract from the context
+            objectGroup: The object group to extract from the context
 
         Returns: A dictionary of str:obj pairs where each key is the name of
-            object. Will return an empty dictionary if the given type is not
+            object. Will return an empty dictionary if the given group is not
             found in the context.
 
         """
-        _type = objectType.value if isinstance(objectType,
-                                               ContextObjectTypes) else objectType
-        return self.objects.get(_type, {})
+        _group = objectGroup.value if isinstance(objectGroup,
+                                                 ContextObjectGroups) else objectGroup
+        return self.objects.get(_group, {})
 
-    @deprecated("Use myContext.object_filter instead")
+    @deprecated(custom_message="Use Context.object_filter instead")
     def get_objects(self, *object_names: str,
-                    objectType: ContextObjectTypes | str,
+                    objectGroup: ContextObjectGroups | str,
                     unwrap: bool = True) \
         -> Union[None, ContextObject, List[Union[ContextObject, None]]]:
         """
-        Gets a specific group of objects by name and type tracked by this
+        Gets a specific group of objects by name and group tracked by this
         context.
 
         Args:
             *object_names: Any number of object names to extract from the
                 context
 
-            objectType: The object type shared by these objects.
+            objectGroup: The object group shared by these objects.
             unwrap: In the event that there is a single object found should the
                 method return a list of length one or a single value. Will also
                 change it from returning an empty list if no names are provided
@@ -273,7 +290,7 @@ class Context(metaclass=ContextAwareObjectMeta):
         if len(object_names) == 0:
             return None if unwrap else []
 
-        _all_objects = self.get_objects_by_type(objectType)
+        _all_objects = self.get_objects_by_type(objectGroup)
         _objs = []
         for component_name in object_names:
             _objs.append(_all_objects.get(component_name, None))
@@ -281,18 +298,18 @@ class Context(metaclass=ContextAwareObjectMeta):
         for name, obj in zip(object_names, _objs):
             if obj is None:
                 warn(
-                    f"Could not find an {objectType} with the name \"{name}\" in the context")
+                    f"Could not find an {objectGroup} with the name \"{name}\" in the context")
 
         if len(_objs) == 1 and unwrap:
             return _objs[0]
         return _objs
 
-    @deprecated("Replaced with myContext.components and "
-                "myContext.object_filter.by_name")
+    @deprecated(custom_message="Replaced with Context.components and "
+                               "Context.object_filter.by_name")
     def get_components(self, *component_names: str, unwrap: bool = True) -> \
         Union[None, ContextObject, List[Union[ContextObject, None]]]:
         return self.get_objects(*component_names,
-                                objectType=ContextObjectTypes.component,
+                                objectGroup=ContextObjectGroups.component,
                                 unwrap=unwrap)
 
     def add_connection(self, source: Union["Compartment", "BaseOp"],
@@ -332,29 +349,29 @@ class Context(metaclass=ContextAwareObjectMeta):
 
         path = make_unique_path(directory, model_name)
 
-        contextMeta = {"types": list(self.objects.keys()),
+        contextMeta = {"groups": list(self.objects.keys()),
                        "path": self.path}
 
         with open(f"{path}/contextData.json", "w") as f:
             f.write(json.dumps(contextMeta, indent=4))
 
-        for _type in self.objects.keys():
-            type_path = f"{path}/{make_safe_filename(_type)}"
-            os.mkdir(type_path)
+        for _group in self.objects.keys():
+            group_path = f"{path}/{make_safe_filename(_group)}"
+            os.mkdir(group_path)
 
-            _objs = self.get_objects_by_type(_type)
+            _objs = self.get_objects_by_type(_group)
 
             made_custom = False
             data = {}
 
-            if ((isinstance(_type,
-                            str) and _type in ContextObjectTypes.context.value) or
-                (isinstance(_type,
-                            ContextObjectTypes) and _type == ContextObjectTypes.context)):
+            if ((isinstance(_group,
+                            str) and _group in ContextObjectGroups.context.value) or
+                (isinstance(_group,
+                            ContextObjectGroups) and _group == ContextObjectGroups.context)):
                 for _obj_name, obj in _objs.items():
                     if hasattr(obj, "save_to_json") and callable(
                         getattr(obj, "save_to_json")):
-                        obj.save_to_json(type_path)
+                        obj.save_to_json(group_path)
                         data[_obj_name] = {
                             "priority": getattr(obj, "_priority", 0)}
             else:
@@ -373,11 +390,11 @@ class Context(metaclass=ContextAwareObjectMeta):
                         if hasattr(obj, "save") and callable(
                             getattr(obj, "save")):
                             if not made_custom:
-                                os.mkdir(type_path + "/custom")
+                                os.mkdir(group_path + "/custom")
                                 made_custom = True
-                            obj.save(type_path + "/custom")
+                            obj.save(group_path + "/custom")
 
-            with open(f"{type_path}/roots.json", "w") as fp:
+            with open(f"{group_path}/roots.json", "w") as fp:
                 json.dump(data, fp, indent=4)
 
         connections = {}
@@ -404,32 +421,32 @@ class Context(metaclass=ContextAwareObjectMeta):
         with cls(metaData.get("path", module_name)) as ctx:
             delayed_load = []
 
-            for _type in metaData["types"]:
+            for _group in metaData["groups"]:
 
-                type_path = f"{path}/{make_safe_filename(_type)}"
-                with open(f"{type_path}/roots.json", "r") as fp:
-                    typeRoots = json.load(fp)
+                group_path = f"{path}/{make_safe_filename(_group)}"
+                with open(f"{group_path}/roots.json", "r") as fp:
+                    groupRoots = json.load(fp)
 
-                for obj_name, objData in typeRoots.items():
+                for obj_name, objData in groupRoots.items():
                     objKlass = modManager.import_module(objData["modulePath"])
                     args = objData["args"]
                     kwargs = objData["kwargs"]
                     newObj = objKlass(*args, **kwargs)
-                    priority = objData.get("priority",
-                                           getattr(newObj, "_priority", 0))
+                    _priority = objData.get("priority",
+                                            getattr(newObj, "_priority", 0))
                     delayed_load.append((
-                        priority, newObj,
-                        objData, type_path))
+                        _priority, newObj,
+                        objData, group_path))
 
             delayed_load = sorted(delayed_load, key=lambda x: x[0],
                                   reverse=True)
-            for _, obj, data, type_path in delayed_load:
+            for _, obj, data, group_path in delayed_load:
                 if hasattr(obj, "from_json") and callable(
                     getattr(obj, "from_json")):
                     obj.from_json(data)
 
                 if hasattr(obj, "load") and callable(getattr(obj, "load")):
-                    obj.load(f"{type_path}/custom")
+                    obj.load(f"{group_path}/custom")
 
             with open(f"{path}/connections.json", "r") as fp:
                 connectionData = json.load(fp)

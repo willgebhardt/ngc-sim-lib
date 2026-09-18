@@ -1,19 +1,24 @@
 from ngcsimlib._src.logger import warn
 
 
-def deprecated(replaced_by=None): ## function deprecating decorator
-    def decorator(fn):
+def deprecated(fn=None, *, replaced_by=None, custom_message=None):
+    def decorator(_fn):
         def _wrapped(*args, **kwargs):
-            message = "is deprecated" ## <= default warning message
-            if replaced_by: ## make known substitute function name, if replaced_by != None
-                ## uses __name__ or string representation
+            message = "is deprecated" + ("" if custom_message is None
+                                         else (". " + custom_message))
+
+            if replaced_by:
                 new_name = getattr(replaced_by, '__name__', str(replaced_by))
                 message += f" (use {new_name} instead)"
-            warn(fn.__qualname__, message)
-            return fn(*args, **kwargs)
+            warn(_fn.__qualname__, message)
+            return _fn(*args, **kwargs)
         _wrapped._is_deprecated = True
         _wrapped._original = fn 
         return _wrapped
+
+    if fn is not None:
+        return decorator(fn)
+
     return decorator
 
 

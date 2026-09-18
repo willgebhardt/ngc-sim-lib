@@ -1,5 +1,5 @@
 from ngcsimlib._src.context.contextAwareObject import ContextAwareObject
-from ngcsimlib._src.context.contextObjectDecorators import process
+from ngcsimlib._src.typing import process
 from ngcsimlib._src.global_state.manager import global_state_manager
 from ngcsimlib._src.logger import warn, error
 from ngcsimlib._src.utils.priority import priority

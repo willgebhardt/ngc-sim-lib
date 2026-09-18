@@ -58,8 +58,6 @@ class __context_manager:
         self.__current_path.append(location)
         if self.exists() or not catch_empty:
             return True
-        warn(f"Stepping into a context path that does not have an associated "
-             f"context ({self.join_path()}).")
         return False
 
     def step_back(self) -> bool:
@@ -86,8 +84,6 @@ class __context_manager:
         self.__current_path[:] = _path.copy()
         if self.exists():
             return True
-        warn(f"Stepping into a context path that does not have an associated "
-             f"context ({self.join_path()}).")
         return True
 
     def get_context(self, path: Path) -> Union["Context", None]:
@@ -196,13 +192,11 @@ class __context_manager:
 
         self.__contexts[_path] = context
 
-    def register_context_local(self, local_path: Path, context: "Context",
+    def register_context_local(self, context: "Context",
                                overwrite: bool = True) -> bool:
         """
-        Registers a context to the set of global contexts starting from the current
-        path
+        Registers a context to the set of global contexts at the current  path
         Args:
-            local_path: The local path to register the context under
             context: The context to register
             overwrite (default: False): Should this overwrite a context if one
             already exists at that path, will throw a warning either way.
@@ -210,7 +204,7 @@ class __context_manager:
         Returns: if the context was successfully registered
 
         """
-        return self.register_context(self.append_path(None, local_path), context, overwrite)
+        return self.register_context(self.current_path, context, overwrite)
 
     def remove_context(self, path: Path):
         """
